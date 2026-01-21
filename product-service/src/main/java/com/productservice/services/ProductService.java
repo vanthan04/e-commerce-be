@@ -1,64 +1,53 @@
 package com.productservice.services;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.productservice.dto.response.product.ProductResponse;
-import com.productservice.event.producer.inventory.ProductCreatedEvent;
+import com.productservice.dto.response.ProductDTORes;
 import com.productservice.exception.AppException;
 import com.productservice.exception.ErrorCode;
+import com.productservice.models.Category;
 import com.productservice.models.Product;
-import com.productservice.models.ProductType;
-import com.productservice.repositories.ProductRepository;
-import com.productservice.repositories.ProductTypeRepository;
+import com.productservice.repositories.CategoryJpaRepository;
+import com.productservice.repositories.ProductJpaRepository;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.math.BigDecimal;
 import java.util.*;
 
 @Service
 @AllArgsConstructor
 public class ProductService {
+    private final CloudinaryService cloudinaryService;
+    private final CategoryJpaRepository categoryRepository;
+    private final ProductJpaRepository productRepository;
 
-    private final ProductRepository productRepository;
-    private final ProductTypeRepository productTypeRepository;
-    private final ObjectMapper objectMapper;
-    private final ImageService imageService;
-    private final KafkaTemplate<String, ProductCreatedEvent> kafkaTemplate;
-
-    /**
-     * Create product
-     */
-    public Product createProduct(
-            UUID typeId,
+    public UUID createProduct(
             String name,
+            UUID categoryId,
             String description,
-            BigDecimal price,
-            Map<String, Object> productAttributes,
-            List<String> imageUrls
+            Map<String, Object> productAttributes
     ) {
+
         // Kiểm tra loại sản phẩm tồn tại
-        ProductType type = productTypeRepository.findById(typeId)
-                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_TYPE_NOT_FOUND));
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
 
         // Kiểm tra trùng tên sản phẩm
-        productRepository.findByProductName(name).ifPresent(p -> {
+        productRepository.findByName(name).ifPresent(p -> {
             throw new AppException(ErrorCode.PRODUCT_NAME_ALREADY_EXISTS);
         });
 
         try {
             // Tạo sản phẩm mới
-            Product newProduct = new Product();
-            newProduct.createProduct(UUID.randomUUID(), name, description, price, productAttributes, imageUrls, type);
+            Product newProduct = new Product(
+                    name,
+                    description,
+                    productAttributes,
+                    category
+            );
             // Lưu vào DB
             productRepository.save(newProduct);
 
-            // Gửi event qua Kafka
-            kafkaTemplate.send("productCreated", new ProductCreatedEvent(newProduct.getProductId()));
-
-            return newProduct;
+            return newProduct.getProductId();
 
         } catch (Exception e) {
             System.out.println("Lỗi khi tạo sản phẩm" + e.getMessage());
@@ -67,53 +56,48 @@ public class ProductService {
     }
 
 
-    /**
-     * Get all products
-     */
-    public List<ProductResponse> getAllProducts() {
+    public List<ProductDTORes> getAllProducts() {
         List<Product> products = productRepository.findAll();
 
         return products.stream().map(product -> {
-            ProductResponse dto = new ProductResponse();
-            dto.setProductId(product.getProductId());
-            dto.setProductName(product.getProductName());
-            dto.setProductDescription(product.getProductDescription());
-            dto.setProductPrice(product.getProductPrice());
-            dto.setImageUrls(product.getImageUrls());
-            dto.setProductAttributes(product.getProductAttributes());
-            dto.setTypeId(product.getProductType() != null ? product.getProductType().getTypeId() : null);
-            dto.setTypeName(product.getProductType() != null ? product.getProductType().getTypeName() : null);
-
-            return dto;
+            return new ProductDTORes(
+                    product.getProductId(),
+                    product.getName(),
+                    product.getDescription(),
+                    product.getProductAttributes(),
+                    product.isActive(),
+                    product.getCategory(),
+                    product.getCreatedAt(),
+                    product.getUpdatedAt()
+            );
         }).toList();
     }
 
-    /**
-     * Get product by ID
-     */
     public Product getProductById(UUID productId) {
         return productRepository.findById(productId)
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
     }
 
-    /**
-     * Update product
-     */
+    public Product changeActive(UUID productId){
+        Product product = getProductById(productId);
+        product.changeActive();
+        return productRepository.save(product);
+
+    }
     public Product updateProduct(
             UUID productId,
-            UUID typeId,
+            UUID categoryId,
             String name,
             String description,
-            BigDecimal price,
-            boolean active
+            Map<String, Object> productAttributes
     ) {
         Product product = getProductById(productId);
 
         // Tìm ProductType theo typeId
-        ProductType type = productTypeRepository.findById(typeId)
-                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_TYPE_NOT_FOUND));
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
         try {
-            product.updateProduct(type, name, description, price, active);
+            product.updateProduct(category, name, description, productAttributes);
             return productRepository.save(product);
         } catch (Exception e) {
             System.out.println("Lỗi khi cập nhật sản phẩm"+ e.getMessage());
@@ -123,10 +107,6 @@ public class ProductService {
 
 
 
-    /**
-     * Delete product
-     */
-    @Transactional
     public void deleteProduct(UUID productId) {
         try {
             Optional<Product> existed = productRepository.findById(productId);
@@ -134,59 +114,12 @@ public class ProductService {
                 throw new AppException(ErrorCode.PRODUCT_NOT_FOUND);
             }
             Product delProduct = existed.get();
-            // Lấy danh sách ảnh hiện có
-            List<String> currentUrls = delProduct.getImageUrls();
-
-            deleteSomeImages(delProduct.getProductId(), currentUrls);
 
             productRepository.delete(delProduct);
 
         } catch (Exception e){
             System.out.println("Lỗi hệ thống" + e.getMessage());
             throw new AppException(ErrorCode.PRODUCT_INTERNAL_SERVER_ERROR);
-        }
-    }
-
-
-    @Transactional
-    public void deleteSomeImages(UUID productId, List<String> urlsToDelete) {
-        try {
-            Product product = productRepository.findById(productId)
-                    .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
-
-            // Gọi domain xử lý
-            product.deleteImages(urlsToDelete, imageService);
-
-            // Lưu lại
-            productRepository.save(product);
-
-        } catch (AppException ae) {
-            throw ae;
-        } catch (Exception e) {
-            throw new AppException(ErrorCode.PRODUCT_IMAGE_PROCESSING_ERROR);
-        }
-    }
-
-
-    @Transactional
-    public void addImages(UUID productId, MultipartFile[] files) {
-        try {
-            Product product = productRepository.findById(productId)
-                    .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
-
-            List<String> newUrls = new ArrayList<>();
-            for (int i = 0; i < files.length; i++) {
-                String url = imageService.upload(files[i], product.getProductName(), i);
-                newUrls.add(url);
-            }
-
-            product.addImages(newUrls);
-            productRepository.save(product);
-
-        } catch (AppException ae) {
-            throw ae;
-        } catch (Exception e) {
-            throw new AppException(ErrorCode.PRODUCT_IMAGE_PROCESSING_ERROR);
         }
     }
 

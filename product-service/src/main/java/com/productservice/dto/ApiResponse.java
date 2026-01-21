@@ -1,4 +1,4 @@
-package com.productservice.dto.response;
+package com.productservice.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.productservice.exception.ErrorCode;
@@ -25,5 +25,7 @@ public class ApiResponse <T> {
         this.message = enumCode.getMessage();
         this.dataResponse = dataResponse;
     }
+
+
 }
 

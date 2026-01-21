@@ -1,6 +1,5 @@
-package com.inventoryservice.event.consumer.product;
+package com.productservice.messaging.producer.inventory;
 
-import lombok.Data;
 
 import java.util.UUID;
 

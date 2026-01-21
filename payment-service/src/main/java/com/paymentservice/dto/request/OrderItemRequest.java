@@ -1,14 +1,15 @@
 package com.paymentservice.dto.request;
 
-import lombok.Getter;
-
 import java.math.BigDecimal;
+import java.util.Map;
 import java.util.UUID;
 
-@Getter
-public class OrderItemRequest {
-    private UUID productId;
-    private String productName;
-    private int quantity;
-    private BigDecimal price;
+public record OrderItemRequest(
+        UUID productId,
+        String productName,
+        UUID variantId,
+        Map<String, Object> attributes,
+        int quantity,
+        BigDecimal price
+) {
 }

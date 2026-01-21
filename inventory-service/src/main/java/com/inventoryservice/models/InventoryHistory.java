@@ -84,6 +84,7 @@ public class InventoryHistory {
         this.actionDate = LocalDateTime.now();
         this.note = "init inventory";
     }
+
     public void createOrImportInventoryHistory(Inventory inventory, int quantity){
         this.inventory = inventory;
         this.changeQuantity = quantity;

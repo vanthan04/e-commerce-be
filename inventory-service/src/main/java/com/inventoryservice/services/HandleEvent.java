@@ -14,9 +14,6 @@ import org.springframework.stereotype.Service;
 public class HandleEvent {
 
     private final InventoryRepository inventoryRepository;
-    private final InventoryHistoryRepository inventoryHistoryModel;
-    private final InventoryHistoryRepository inventoryHistoryRepository;
-
 
     @Transactional
     @KafkaListener(topics = "productCreated", groupId = "inventoryGroup")
@@ -24,7 +21,7 @@ public class HandleEvent {
 
         System.out.println(productCreatedEvent);
         Inventory inventory = new Inventory();
-        inventory.initInventory(productCreatedEvent.getProductId());
+        inventory.initInventory(productCreatedEvent.productId(), productCreatedEvent.variantId());
         inventoryRepository.save(inventory);
     }
 

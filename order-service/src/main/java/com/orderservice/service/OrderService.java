@@ -61,8 +61,6 @@ public class OrderService {
                 orderRequest.getUserInfo().getAddressShip(),
                 orderRequest.getUserInfo().getPhone(),
                 OrderStatus.PENDING,
-                LocalDateTime.now(),
-                LocalDateTime.now(),
                 orderRequest.getItems()
         );
 
@@ -101,24 +99,26 @@ public class OrderService {
             throw new AppException(ErrorCode.ORDER_CANNOT_CANCEL_IF_NOT_PENDING);
         }
 
-        // Lấy danh sách sản phẩm để hoàn về kho
-        List<OrderLineModel> orderItems = orderLineRepository.findAllByOrder(order);
+//        // Lấy danh sách sản phẩm để hoàn về kho
+//        List<OrderLineModel> orderItems = orderLineRepository.findAllByOrder(order);
 
-        List<OrderItemRequest> itemRequests = orderItems.stream().map(item -> {
-            OrderItemRequest req = new OrderItemRequest();
-            req.setProductId(item.getProductId());
-            req.setQuantity(item.getQuantity());
-            req.setPrice(item.getPrice());
-            return req;
-        }).toList();
-
-
+//        List<OrderItemRequest> itemRequests = orderItems.stream().map(item -> {
+//            return new OrderItemRequest(
+//                    item.getProductId(),
+//                    item.getProductName(),
+//                    item.getVariantId(),
+//                    item.getAttributes(),
+//                    item.getQuantity(),
+//                    item.getPrice()
+//            );
+//        }).toList();
+//
         boolean inventoryReturned = inventoryClient.cancelReserveInventory(orderId).isSuccess();
         if (!inventoryReturned) {
             throw new AppException(ErrorCode.ORDER_CANNOT_RETURN_TO_INVENTORY);
         }
 
-        order.updateOrder(OrderStatus.CANCELLED, LocalDateTime.now());
+        order.updateOrder(OrderStatus.CANCELLED);
         return orderRepository.save(order);
     }
 }

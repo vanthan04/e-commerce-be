@@ -18,18 +18,6 @@ import java.util.UUID;
 public class CartService {
     private final CartRepository cartRepository;
 
-    public CartModel getCartByUserId(UUID userId){
-        Optional<CartModel> existed = cartRepository.findById(userId);
-        if (existed.isEmpty()){
-            CartModel cartModel = new CartModel(
-                    userId,
-                    null,
-                    LocalDateTime.now()
-            );
-            return cartRepository.save(cartModel);
-        }
-        return existed.get();
-    }
 
     public CartModel getOrCreateCart(UUID userId) {
         return cartRepository.findById(userId).orElseGet(() -> {

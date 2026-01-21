@@ -49,6 +49,15 @@ public class OrderModel {
     @JsonManagedReference
     private List<OrderLineModel> orderLines = new ArrayList<>();
 
+    @PrePersist
+    public void saveOrderModel(){
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+    @PreUpdate
+    public void updateOrderModel(){
+        this.updatedAt = LocalDateTime.now();
+    }
 
     public void createOrder(
             UUID orderId,
@@ -57,8 +66,6 @@ public class OrderModel {
             String addressShip,
             String phone,
             OrderStatus orderStatus,
-            LocalDateTime createdAt,
-            LocalDateTime updatedAt,
             List<OrderItemRequest> orderItems
     ){
         this.orderId = orderId;
@@ -67,19 +74,13 @@ public class OrderModel {
         this.addressShip = addressShip;
         this.phone = phone;
         this.status = orderStatus;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
         for (OrderItemRequest orderItem : orderItems){
-            OrderLineModel orderLineModel = new OrderLineModel(this, orderItem.getProductId(), orderItem.getQuantity(), orderItem.getPrice());
+            OrderLineModel orderLineModel = new OrderLineModel(this, orderItem.productId(), orderItem.variantId(), orderItem.quantity(), orderItem.price());
             this.orderLines.add(orderLineModel);
         }
     }
 
-    public void updateOrder(
-            OrderStatus orderStatus,
-            LocalDateTime updatedAt
-    ){
+    public void updateOrder(OrderStatus orderStatus){
         this.status = orderStatus;
-        this.updatedAt = updatedAt;
     }
 }

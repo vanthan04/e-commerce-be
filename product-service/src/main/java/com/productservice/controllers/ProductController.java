@@ -1,66 +1,54 @@
 package com.productservice.controllers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.productservice.dto.request.product.CreateProductRequest;
-import com.productservice.dto.request.product.UpdateProductRequest;
-import com.productservice.dto.response.ApiResponse;
-import com.productservice.dto.response.EnumCode;
-import com.productservice.dto.response.product.ProductResponse;
-import com.productservice.models.Product;
-import com.productservice.services.ImageService;
+import com.productservice.dto.ApiResponse;
+import com.productservice.dto.EnumCode;
+import com.productservice.dto.request.ProductCreatedDTOReq;
+import com.productservice.dto.request.ProductUpdatedDTOReq;
+import com.productservice.dto.response.ProductDTORes;
 import com.productservice.services.ProductService;
+import com.productservice.models.Product;
+import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+@AllArgsConstructor
 @RestController
 @RequestMapping("/api/v1/products")
 public class ProductController {
     private final ProductService productService;
-    private final ImageService imageService;
-
-    public ProductController(ProductService productService, ImageService imageService) {
-        this.productService = productService;
-        this.imageService = imageService;
-    }
 
     @PostMapping
-    public ApiResponse<Product> createNewProduct(@RequestPart("product") CreateProductRequest request,
-                                                 @RequestPart("files") MultipartFile[] files) {
+    public ApiResponse<UUID> createNewProduct(@ModelAttribute ProductCreatedDTOReq request) {
 
-        List<String> urls = new ArrayList<>();
-        for (int i = 0; i < files.length; i++) {
-            String url = imageService.upload(files[i], request.getProductName(), i);
-            urls.add(url);
-        }
         // gọi service
-        Product saved = productService.createProduct(
-                request.getTypeId(),
-                request.getProductName(),
-                request.getProductDescription(),
-                request.getProductPrice(),
-                request.getProductAttributes(),
-                urls
+        UUID saved = productService.createProduct(
+                request.name(),
+                request.categoryId(),
+                request.description(),
+                request.productAttributes()
         );
 
         return new ApiResponse<>(EnumCode.PRODUCT_CREATED, saved);
     }
 
+    @PutMapping("/{productId}/active")
+    public ApiResponse<Product> changeActiveProduct(@PathVariable UUID productId){
+        return new ApiResponse<>(EnumCode.PRODUCT_CHANGE_ACTIVE, productService.changeActive(productId));
+    }
     @PutMapping("/{productId}")
     public ApiResponse<Product> updateProduct(
             @PathVariable UUID productId,
-            @RequestBody UpdateProductRequest req
+            @RequestBody ProductUpdatedDTOReq req
     ) {
         Product updated = productService.updateProduct(
                 productId,
-                req.getTypeId(),
-                req.getProductName(),
-                req.getProductDescription(),
-                req.getProductPrice(),
-                req.isActive()
+                req.categoryId(),
+                req.productName(),
+                req.productDescription(),
+                req.productAttributes()
         );
         return new ApiResponse<>(EnumCode.PRODUCT_UPDATED, updated);
     }
@@ -78,35 +66,11 @@ public class ProductController {
     }
 
     @GetMapping
-    public ApiResponse<List<ProductResponse>> getAllProducts() {
-        List<ProductResponse> products = productService.getAllProducts();
+    public ApiResponse<List<ProductDTORes>> getAllProducts() {
+        List<ProductDTORes> products = productService.getAllProducts();
         return new ApiResponse<>(EnumCode.PRODUCT_FETCHED, products);
     }
 
-    /**
-     * Xoá 1 số ảnh của product
-     */
-    @DeleteMapping("/{productId}/images")
-    public ApiResponse<String> deleteProductImages(
-            @PathVariable UUID productId,
-            @RequestBody List<String> urlsToDelete
-    ) throws JsonProcessingException {
-            productService.deleteSomeImages(productId, urlsToDelete);
-            return new ApiResponse<>(EnumCode.PRODUCT_IMAGE_DELETED, null);
-    }
-
-
-    /**
-     * Thêm ảnh mới cho product
-     */
-    @PostMapping("/{productId}/images")
-    public ApiResponse<String> addProductImages(
-            @PathVariable UUID productId,
-            @RequestPart("files") MultipartFile[] files
-    ) {
-        productService.addImages(productId, files);
-        return new ApiResponse<>(EnumCode.PRODUCT_IMAGE_ADDED, null);
-    }
 
 
 }

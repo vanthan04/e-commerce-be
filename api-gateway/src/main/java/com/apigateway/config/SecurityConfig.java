@@ -128,7 +128,7 @@ public class SecurityConfig {
                                 """;
                             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
                             var buffer = response.bufferFactory().wrap(bytes);
-                            return response.writeWith(Mono.just(buffer)).then(Mono.empty()); // 👈
+                            return response.writeWith(Mono.just(buffer)).then(Mono.empty());
                         })
 
                 )

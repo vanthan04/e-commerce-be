@@ -5,8 +5,12 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.descriptor.jdbc.JdbcType;
 
 import java.math.BigDecimal;
+import java.sql.Types;
+import java.util.Map;
 import java.util.UUID;
 
 @Entity
@@ -28,6 +32,14 @@ public class OrderLineModel {
     @Column(name = "product_id", nullable = false)
     private UUID productId;
 
+    private String productName;
+
+    private UUID variantId;
+
+    @Column(columnDefinition = "JSONB")
+    @JdbcTypeCode(Types.OTHER)
+    private Map<String, Object> attributes;
+
     @Column(nullable = false)
     private int quantity;
 
@@ -35,10 +47,11 @@ public class OrderLineModel {
     private BigDecimal price;
 
 
-    public OrderLineModel(OrderModel order, UUID productId, int quantity, BigDecimal price) {
+    public OrderLineModel(OrderModel order, UUID productId, UUID variantId, int quantity, BigDecimal price) {
         this.orderLineId = UUID.randomUUID();
         this.order = order;
         this.productId = productId;
+        this.variantId = variantId;
         this.quantity = quantity;
         this.price = price;
     }

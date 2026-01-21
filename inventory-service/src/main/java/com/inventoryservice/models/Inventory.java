@@ -23,7 +23,7 @@ public class Inventory {
     @Id
     private UUID inventoryId;
     private UUID productId;
-
+    private UUID variantId;
     private int quantity;
     private int reservedQuantity;
 
@@ -33,9 +33,11 @@ public class Inventory {
 
     private LocalDateTime updatedAt;
 
-    public void initInventory(UUID productId){
+    public void initInventory(UUID productId, UUID variantId){
         this.inventoryId = UUID.randomUUID();
         this.productId = productId;
+        this.variantId = variantId;
+
         this.quantity = 0;
         this.reservedQuantity = 0;
 

@@ -38,7 +38,7 @@ public class CartController {
 
     @PutMapping("/{userId}/decrease/{productId}")
     public ApiResponse<CartItem> decreaseQuantity(@PathVariable UUID userId, @PathVariable UUID productId) {
-        CartItem item = cartService.addProduct(userId, productId, -1); // Giảm 1
+        CartItem item = cartService.addProduct(userId, productId, -1);
         return new ApiResponse<>(EnumCode.CART_ITEM_UPDATED, item);
     }
 
